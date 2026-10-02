@@ -497,9 +497,11 @@
                         ${student.pin}
                     </td>
                     <td class="py-3 px-6 text-center">
-                        <span class="bg-accent/20 text-accent-700 font-bold py-1 px-3 rounded-full border border-accent/30 shadow-sm text-lg">
-                            ${student.points}
-                        </span>
+                        <input type="number" 
+                               value="${student.points}" 
+                               onchange="setPoints('${student.id}', this.value)" 
+                               class="w-20 text-center font-bold py-1 px-2 rounded-lg border border-accent/30 bg-accent/10 text-accent-700 shadow-sm text-lg focus:outline-none focus:ring-2 focus:ring-accent focus:bg-white transition"
+                               title="Type to set exact points">
                     </td>
                     <td class="py-3 px-6 text-center">
                         <div class="flex item-center justify-center space-x-1">
@@ -531,6 +533,27 @@
 
         function filterStudents() {
             renderAdminTable(document.getElementById('searchInput').value);
+        }
+
+        function setPoints(studentId, newPoints) {
+            const index = students.findIndex(s => s.id === studentId);
+            if (index !== -1) {
+                let parsedPoints = parseInt(newPoints);
+                if (isNaN(parsedPoints) || parsedPoints < 0) {
+                    parsedPoints = 0; // Prevent negative or invalid values
+                }
+                
+                // Only update if the value actually changed
+                if (students[index].points !== parsedPoints) {
+                    students[index].points = parsedPoints;
+                    saveData();
+                    renderAdminTable(document.getElementById('searchInput').value);
+                    showToast(`Points for ${students[index].name} set to ${parsedPoints}.`, 'success');
+                } else {
+                    // Re-render to clear any invalid typed input that didn't trigger an update
+                    renderAdminTable(document.getElementById('searchInput').value); 
+                }
+            }
         }
 
         function modifyPoints(studentId, amount) {
