@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PBIS Points Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4F46E5', // Indigo
+                        secondary: '#10B981', // Emerald
+                        accent: '#F59E0B', // Amber
+                        dark: '#1F2937', // Gray 800
+                        light: '#F3F4F6', // Gray 100
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #F3F4F6; }
+        /* Hide number input spinners */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="text-gray-800 antialiased min-h-screen flex flex-col">
+
+    <nav class="bg-primary text-white shadow-md">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-star text-accent text-2xl"></i>
+                <h1 class="text-2xl font-bold tracking-tight">PBIS Rewards Tracker</h1>
+            </div>
+            <div>
+                <button id="navStudentBtn" class="px-4 py-2 bg-white text-primary rounded-lg font-semibold shadow hover:bg-gray-100 transition duration-200 mr-2" onclick="switchView('student')">
+                    <i class="fa-solid fa-user-graduate mr-1"></i> Student Login
+                </button>
+                <button id="navAdminBtn" class="px-4 py-2 bg-primary border border-white text-white rounded-lg font-semibold shadow hover:bg-white hover:text-primary transition duration-200" onclick="showAdminLoginModal()">
+                    <i class="fa-solid fa-chalkboard-user mr-1"></i> Teacher Admin
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow max-w-6xl mx-auto w-full px-4 py-8 relative">
+
+        <!-- ========================================== -->
+        <!-- STUDENT VIEW -->
+        <!-- ========================================== -->
+        <div id="studentView" class="max-w-md mx-auto bg-white rounded-xl shadow-lg overflow-hidden fade-in">
+            <div class="bg-primary p-6 text-center text-white">
+                <i class="fa-solid fa-id-card text-5xl mb-3 text-accent"></i>
+                <h2 class="text-2xl font-bold">Check Your Points</h2>
+                <p class="text-sm opacity-90">Select your name and enter your PIN.</p>
+            </div>
+            
+            <div id="studentLoginForm" class="p-6">
+                <div class="mb-5">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="studentSelect">
+                        Who are you?
+                    </label>
+                    <div class="relative">
+                        <select id="studentSelect" class="block appearance-none w-full bg-gray-50 border border-gray-300 text-gray-700 py-3 px-4 pr-8 rounded-lg leading-tight focus:outline-none focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/50 text-lg">
+                            <option value="">-- Select your name --</option>
+                            <!-- Options populated via JS -->
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="studentPin">
+                        Enter 4-Digit PIN
+                    </label>
+                    <input type="password" id="studentPin" inputmode="numeric" pattern="[0-9]*" maxlength="4" class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 text-center text-2xl tracking-widest leading-tight focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition" placeholder="••••">
+                </div>
+
+                <div id="studentLoginError" class="hidden mb-4 p-3 bg-red-100 text-red-700 border border-red-400 rounded text-sm text-center">
+                    Incorrect PIN or no student selected. Try again.
+                </div>
+
+                <button onclick="loginStudent()" class="w-full bg-secondary hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-lg shadow-md transition duration-200 flex justify-center items-center text-lg">
+                    <i class="fa-solid fa-unlock mr-2"></i> Check Points
+                </button>
+            </div>
+
+            <div id="studentDashboard" class="hidden p-6 text-center">
+                <button onclick="logoutStudent()" class="text-gray-500 hover:text-gray-700 text-sm font-semibold mb-4 flex items-center justify-center w-full">
+                    <i class="fa-solid fa-arrow-left mr-1"></i> Back
+                </button>
+                <h3 class="text-xl font-semibold text-gray-700 mb-2">Hello, <span id="dashStudentName" class="text-primary font-bold"></span>!</h3>
+                <p class="text-gray-500 mb-6">Here is your current PBIS balance:</p>
+                
+                <div class="inline-block relative">
+                    <!-- Confetti container -->
+                    <div id="confettiContainer" class="absolute inset-0 pointer-events-none"></div>
+                    
+                    <div class="bg-gradient-to-br from-yellow-100 to-amber-200 border-4 border-accent rounded-full h-48 w-48 flex flex-col items-center justify-center shadow-xl mx-auto mb-6 relative overflow-hidden">
+                        <i class="fa-solid fa-star text-accent/20 text-6xl absolute top-2 right-2"></i>
+                        <span id="dashStudentPoints" class="text-6xl font-black text-gray-800 drop-shadow-sm z-10">0</span>
+                        <span class="text-sm font-bold text-gray-600 uppercase tracking-wider z-10 mt-1">Points</span>
+                    </div>
+                </div>
+
+                <p class="text-sm text-gray-500 italic mt-4">Keep up the great work!</p>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- ADMIN/TEACHER VIEW -->
+        <!-- ========================================== -->
+        <div id="adminView" class="hidden fade-in">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                <div class="bg-dark p-6 text-white flex justify-between items-center flex-wrap gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold"><i class="fa-solid fa-users-gear text-accent mr-2"></i> Class Management</h2>
+                        <p class="text-sm text-gray-300">Manage students, view PINs, and update points.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="showAddStudentModal()" class="bg-secondary hover:bg-emerald-600 text-white py-2 px-4 rounded-lg shadow text-sm font-semibold transition">
+                            <i class="fa-solid fa-plus mr-1"></i> Add Student
+                        </button>
+                        <button onclick="confirmResetPoints()" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg shadow text-sm font-semibold transition">
+                            <i class="fa-solid fa-rotate-left mr-1"></i> Reset All Points
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Admin Table Controls -->
+                <div class="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                    <div class="relative w-64">
+                        <input type="text" id="searchInput" onkeyup="filterStudents()" placeholder="Search students..." class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400"></i>
+                    </div>
+                    <div class="text-sm text-gray-600 font-semibold">
+                        Total Students: <span id="totalStudentsCount">0</span>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100 text-gray-600 uppercase text-xs leading-normal border-b border-gray-200">
+                                <th class="py-3 px-6 text-left cursor-pointer hover:bg-gray-200 transition" onclick="sortTable('name')">Student Name <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
+                                <th class="py-3 px-6 text-center">PIN Code</th>
+                                <th class="py-3 px-6 text-center cursor-pointer hover:bg-gray-200 transition" onclick="sortTable('points')">Current Points <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
+                                <th class="py-3 px-6 text-center">Quick Actions</th>
+                                <th class="py-3 px-6 text-right">Manage</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentTableBody" class="text-gray-700 text-sm font-medium">
+                            <!-- Rows populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="emptyState" class="hidden p-10 text-center text-gray-500">
+                    <i class="fa-regular fa-folder-open text-4xl mb-3"></i>
+                    <p class="text-lg">No students found. Add a student to get started.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Admin Login Modal -->
+    <div id="adminLoginModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 p-4 fade-in">
+        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
+            <h3 class="text-xl font-bold mb-2 text-dark"><i class="fa-solid fa-lock text-red-500 mr-2"></i> Teacher Access</h3>
+            <p class="text-sm text-gray-500 mb-4">Enter master password to access settings.</p>
+            <p class="text-xs text-gray-400 mb-4 italic">(Default password is: <strong class="text-gray-600">admin123</strong>)</p>
+            
+            <input type="password" id="adminPassword" class="w-full border border-gray-300 rounded-lg p-3 mb-2 focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Password">
+            
+            <div id="adminLoginError" class="hidden text-red-500 text-xs mb-4 font-semibold">Incorrect password.</div>
+            
+            <div class="flex justify-end space-x-2 mt-4">
+                <button onclick="closeModals()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">Cancel</button>
+                <button onclick="verifyAdmin()" class="px-4 py-2 bg-primary text-white rounded-lg shadow hover:bg-indigo-700 transition">Login</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Student Modal -->
+    <div id="addStudentModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 p-4 fade-in">
+        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
+            <h3 class="text-xl font-bold mb-4 text-dark"><i class="fa-solid fa-user-plus text-secondary mr-2"></i> Add New Student</h3>
+            
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="newStudentName">First & Last Name</label>
+            <input type="text" id="newStudentName" class="w-full border border-gray-300 rounded-lg p-3 mb-4 focus:outline-none focus:ring-2 focus:ring-primary" placeholder="e.g. Jane Doe">
+            
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="newStudentPin">PIN (Auto-generated if blank)</label>
+            <div class="flex space-x-2 mb-4">
+                <input type="text" id="newStudentPin" maxlength="4" pattern="[0-9]*" class="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-primary text-center tracking-widest font-mono" placeholder="1234">
+                <button onclick="generateRandomPin()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 rounded-lg transition" title="Generate Random PIN">
+                    <i class="fa-solid fa-dice"></i>
+                </button>
+            </div>
+
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="newStudentPoints">Starting Points</label>
+            <input type="number" id="newStudentPoints" value="0" class="w-full border border-gray-300 rounded-lg p-3 mb-6 focus:outline-none focus:ring-2 focus:ring-primary">
+            
+            <div class="flex justify-end space-x-2">
+                <button onclick="closeModals()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">Cancel</button>
+                <button onclick="saveNewStudent()" class="px-4 py-2 bg-secondary text-white rounded-lg shadow hover:bg-emerald-600 transition">Save Student</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Modal / Toast -->
+    <div id="toastNotification" class="fixed bottom-5 right-5 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-xl transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-secondary mr-3 text-xl"></i>
+        <span id="toastMessage" class="font-medium">Action successful.</span>
+    </div>
+
+    <script>
+        // --- Application State ---
+        // We use localStorage to persist data in the browser.
+        let students = JSON.parse(localStorage.getItem('pbis_students')) || [];
+        let currentSort = { column: 'name', asc: true };
+        const ADMIN_PASS = 'admin123'; // Hardcoded for this simple single-file app
+
+        // Initialize App on Load
+        window.onload = function() {
+            // Seed some dummy data if empty for demonstration purposes
+            if (students.length === 0) {
+                students = [
+                    { id: generateId(), name: "Alice Smith", pin: "1042", points: 25 },
+                    { id: generateId(), name: "Bob Jones", pin: "8593", points: 10 },
+                    { id: generateId(), name: "Charlie Brown", pin: "2201", points: 55 },
+                    { id: generateId(), name: "Diana Prince", pin: "9940", points: 120 }
+                ];
+                saveData();
+            }
+            populateStudentDropdown();
+        };
+
+        // --- Core Functions ---
+        function generateId() {
+            return Math.random().toString(36).substr(2, 9);
+        }
+
+        function saveData() {
+            localStorage.setItem('pbis_students', JSON.stringify(students));
+        }
+
+        // --- View Switching Logic ---
+        function switchView(view) {
+            document.getElementById('studentView').classList.add('hidden');
+            document.getElementById('adminView').classList.add('hidden');
+            
+            // Reset Student dashboard back to login form
+            document.getElementById('studentLoginForm').classList.remove('hidden');
+            document.getElementById('studentDashboard').classList.add('hidden');
+            document.getElementById('studentPin').value = '';
+            document.getElementById('studentSelect').value = '';
+            document.getElementById('studentLoginError').classList.add('hidden');
+
+            // Reset Nav Buttons
+            document.getElementById('navStudentBtn').className = "px-4 py-2 bg-primary border border-white text-white rounded-lg font-semibold shadow hover:bg-white hover:text-primary transition duration-200 mr-2";
+            document.getElementById('navAdminBtn').className = "px-4 py-2 bg-primary border border-white text-white rounded-lg font-semibold shadow hover:bg-white hover:text-primary transition duration-200";
+
+            if (view === 'student') {
+                document.getElementById('studentView').classList.remove('hidden');
+                document.getElementById('navStudentBtn').className = "px-4 py-2 bg-white text-primary rounded-lg font-semibold shadow hover:bg-gray-100 transition duration-200 mr-2";
+                populateStudentDropdown();
+            } else if (view === 'admin') {
+                document.getElementById('adminView').classList.remove('hidden');
+                document.getElementById('navAdminBtn').className = "px-4 py-2 bg-white text-primary rounded-lg font-semibold shadow hover:bg-gray-100 transition duration-200";
+                renderAdminTable();
+            }
+        }
+
+        // --- Student Portal Logic ---
+        function populateStudentDropdown() {
+            const select = document.getElementById('studentSelect');
+            select.innerHTML = '<option value="">-- Select your name --</option>';
+            
+            // Sort alphabetically for dropdown
+            const sortedStudents = [...students].sort((a, b) => a.name.localeCompare(b.name));
+            
+            sortedStudents.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = s.name;
+                select.appendChild(opt);
+            });
+        }
+
+        function loginStudent() {
+            const studentId = document.getElementById('studentSelect').value;
+            const enteredPin = document.getElementById('studentPin').value;
+            const errorDiv = document.getElementById('studentLoginError');
+
+            if (!studentId || !enteredPin) {
+                errorDiv.textContent = "Please select your name and enter your PIN.";
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+
+            const student = students.find(s => s.id === studentId);
+
+            if (student && student.pin === enteredPin) {
+                // Success
+                errorDiv.classList.add('hidden');
+                showStudentDashboard(student);
+            } else {
+                // Fail
+                errorDiv.textContent = "Incorrect PIN. Please try again.";
+                errorDiv.classList.remove('hidden');
+                document.getElementById('studentPin').value = ''; // clear input
+            }
+        }
+
+        function showStudentDashboard(student) {
+            document.getElementById('studentLoginForm').classList.add('hidden');
+            document.getElementById('studentDashboard').classList.remove('hidden');
+            
+            document.getElementById('dashStudentName').textContent = student.name;
+            
+            // Animate points counting up
+            animateValue("dashStudentPoints", 0, student.points, 1000);
+
+            // Simple confetti effect if points > 0
+            if(student.points > 0) {
+                createConfetti();
+            }
+        }
+
+        function logoutStudent() {
+            document.getElementById('studentDashboard').classList.add('hidden');
+            document.getElementById('studentLoginForm').classList.remove('hidden');
+            document.getElementById('studentPin').value = '';
+            document.getElementById('studentSelect').value = '';
+            document.getElementById('confettiContainer').innerHTML = ''; // Clear confetti
+        }
+
+        function animateValue(id, start, end, duration) {
+            if (start === end) {
+                document.getElementById(id).innerHTML = end;
+                return;
+            }
+            var range = end - start;
+            var current = start;
+            var increment = end > start ? 1 : -1;
+            var stepTime = Math.abs(Math.floor(duration / range));
+            var obj = document.getElementById(id);
+            
+            // Avoid too slow animation for small numbers, or too fast for large
+            if(stepTime < 10) stepTime = 10;
+            if(stepTime > 50) stepTime = 50;
+            
+            increment = Math.ceil(range / (duration / stepTime));
+
+            var timer = setInterval(function() {
+                current += increment;
+                if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
+                    current = end;
+                    clearInterval(timer);
+                }
+                obj.innerHTML = current;
+            }, stepTime);
+        }
+
+        function createConfetti() {
+            const container = document.getElementById('confettiContainer');
+            container.innerHTML = '';
+            const colors = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#3B82F6'];
+            
+            for(let i=0; i<30; i++) {
+                const conf = document.createElement('div');
+                conf.className = 'absolute w-2 h-2 rounded-sm';
+                conf.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                conf.style.left = Math.random() * 100 + '%';
+                conf.style.top = '-10px';
+                conf.style.opacity = Math.random() + 0.5;
+                conf.style.transform = `rotate(${Math.random() * 360}deg)`;
+                
+                // Animation
+                const duration = Math.random() * 2 + 1;
+                conf.animate([
+                    { transform: `translateY(0) rotate(0deg)`, opacity: 1 },
+                    { transform: `translateY(${Math.random() * 100 + 100}px) rotate(${Math.random() * 360}deg)`, opacity: 0 }
+                ], {
+                    duration: duration * 1000,
+                    easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                    fill: 'forwards'
+                });
+                
+                container.appendChild(conf);
+            }
+        }
+
+        // --- Admin/Teacher Logic ---
+        function showAdminLoginModal() {
+            document.getElementById('adminLoginModal').classList.remove('hidden');
+            document.getElementById('adminLoginModal').classList.add('flex');
+            document.getElementById('adminPassword').value = '';
+            document.getElementById('adminLoginError').classList.add('hidden');
+            document.getElementById('adminPassword').focus();
+        }
+
+        function verifyAdmin() {
+            const pass = document.getElementById('adminPassword').value;
+            if (pass === ADMIN_PASS) {
+                closeModals();
+                switchView('admin');
+                showToast('Logged in successfully', 'success');
+            } else {
+                document.getElementById('adminLoginError').classList.remove('hidden');
+            }
+        }
+
+        // Allow Enter key to submit password
+        document.getElementById('adminPassword').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') verifyAdmin();
+        });
+
+        function renderAdminTable(filterText = '') {
+            const tbody = document.getElementById('studentTableBody');
+            const emptyState = document.getElementById('emptyState');
+            tbody.innerHTML = '';
+
+            let displayStudents = students.filter(s => s.name.toLowerCase().includes(filterText.toLowerCase()));
+
+            document.getElementById('totalStudentsCount').textContent = displayStudents.length;
+
+            if (displayStudents.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            // Sorting
+            displayStudents.sort((a, b) => {
+                let valA = a[currentSort.column];
+                let valB = b[currentSort.column];
+                
+                if (typeof valA === 'string') valA = valA.toLowerCase();
+                if (typeof valB === 'string') valB = valB.toLowerCase();
+
+                if (valA < valB) return currentSort.asc ? -1 : 1;
+                if (valA > valB) return currentSort.asc ? 1 : -1;
+                return 0;
+            });
+
+            displayStudents.forEach(student => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-gray-200 hover:bg-gray-50 transition";
+                tr.innerHTML = `
+                    <td class="py-3 px-6 text-left whitespace-nowrap font-bold text-gray-800">
+                        <i class="fa-solid fa-user text-gray-400 mr-2"></i> ${student.name}
+                    </td>
+                    <td class="py-3 px-6 text-center font-mono tracking-widest text-primary font-bold bg-gray-100 rounded">
+                        ${student.pin}
+                    </td>
+                    <td class="py-3 px-6 text-center">
+                        <span class="bg-accent/20 text-accent-700 font-bold py-1 px-3 rounded-full border border-accent/30 shadow-sm text-lg">
+                            ${student.points}
+                        </span>
+                    </td>
+                    <td class="py-3 px-6 text-center">
+                        <div class="flex item-center justify-center space-x-1">
+                            <button onclick="modifyPoints('${student.id}', -5)" class="w-8 h-8 rounded-full bg-red-100 text-red-600 hover:bg-red-500 hover:text-white transition font-bold text-xs" title="-5 Points">-5</button>
+                            <button onclick="modifyPoints('${student.id}', -1)" class="w-8 h-8 rounded-full bg-red-100 text-red-600 hover:bg-red-500 hover:text-white transition font-bold text-xs" title="-1 Point">-1</button>
+                            <button onclick="modifyPoints('${student.id}', 1)" class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 hover:bg-emerald-500 hover:text-white transition font-bold text-xs" title="+1 Point">+1</button>
+                            <button onclick="modifyPoints('${student.id}', 5)" class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 hover:bg-emerald-500 hover:text-white transition font-bold text-xs" title="+5 Points">+5</button>
+                        </div>
+                    </td>
+                    <td class="py-3 px-6 text-right">
+                        <button onclick="deleteStudent('${student.id}')" class="text-gray-400 hover:text-red-500 transition" title="Delete Student">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function sortTable(column) {
+            if (currentSort.column === column) {
+                currentSort.asc = !currentSort.asc;
+            } else {
+                currentSort.column = column;
+                currentSort.asc = true;
+            }
+            renderAdminTable(document.getElementById('searchInput').value);
+        }
+
+        function filterStudents() {
+            renderAdminTable(document.getElementById('searchInput').value);
+        }
+
+        function modifyPoints(studentId, amount) {
+            const index = students.findIndex(s => s.id === studentId);
+            if (index !== -1) {
+                students[index].points += amount;
+                // Don't let points drop below 0 natively, unless you want negative balances
+                if (students[index].points < 0) students[index].points = 0; 
+                saveData();
+                renderAdminTable(document.getElementById('searchInput').value);
+                
+                const actionStr = amount > 0 ? `Added ${amount}` : `Deducted ${Math.abs(amount)}`;
+                showToast(`${actionStr} points for ${students[index].name}.`, amount > 0 ? 'success' : 'warning');
+            }
+        }
+
+        function showAddStudentModal() {
+            document.getElementById('addStudentModal').classList.remove('hidden');
+            document.getElementById('addStudentModal').classList.add('flex');
+            document.getElementById('newStudentName').value = '';
+            document.getElementById('newStudentPin').value = '';
+            document.getElementById('newStudentPoints').value = '0';
+            document.getElementById('newStudentName').focus();
+        }
+
+        function generateRandomPin() {
+            const pin = Math.floor(1000 + Math.random() * 9000).toString();
+            document.getElementById('newStudentPin').value = pin;
+        }
+
+        function saveNewStudent() {
+            const name = document.getElementById('newStudentName').value.trim();
+            let pin = document.getElementById('newStudentPin').value.trim();
+            let points = parseInt(document.getElementById('newStudentPoints').value) || 0;
+
+            if (!name) {
+                showToast("Student name is required.", "error");
+                return;
+            }
+
+            if (!pin) {
+                pin = Math.floor(1000 + Math.random() * 9000).toString();
+            } else if (!/^\d{4}$/.test(pin)) {
+                showToast("PIN must be exactly 4 digits.", "error");
+                return;
+            }
+
+            // Check for duplicate PINs (optional, but good practice)
+            if (students.some(s => s.pin === pin)) {
+                showToast("That PIN is already in use. Generating a new one...", "warning");
+                pin = Math.floor(1000 + Math.random() * 9000).toString();
+            }
+
+            const newStudent = {
+                id: generateId(),
+                name: name,
+                pin: pin,
+                points: points
+            };
+
+            students.push(newStudent);
+            saveData();
+            closeModals();
+            renderAdminTable(document.getElementById('searchInput').value);
+            showToast(`${name} added successfully!`, "success");
+        }
+
+        function deleteStudent(studentId) {
+            const student = students.find(s => s.id === studentId);
+            if (confirm(`Are you sure you want to permanently delete ${student.name}?`)) {
+                students = students.filter(s => s.id !== studentId);
+                saveData();
+                renderAdminTable(document.getElementById('searchInput').value);
+                showToast(`${student.name} deleted.`, "success");
+            }
+        }
+
+        function confirmResetPoints() {
+            if (confirm("WARNING: Are you sure you want to reset ALL student points to ZERO? This cannot be undone.")) {
+                students.forEach(s => s.points = 0);
+                saveData();
+                renderAdminTable(document.getElementById('searchInput').value);
+                showToast("All student points reset to zero.", "warning");
+            }
+        }
+
+        function closeModals() {
+            document.getElementById('adminLoginModal').classList.add('hidden');
+            document.getElementById('adminLoginModal').classList.remove('flex');
+            document.getElementById('addStudentModal').classList.add('hidden');
+            document.getElementById('addStudentModal').classList.remove('flex');
+        }
+
+        // UI Toast Notification Helper
+        let toastTimeout;
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toastNotification');
+            const icon = document.getElementById('toastIcon');
+            const msgSpan = document.getElementById('toastMessage');
+
+            msgSpan.textContent = message;
+
+            if (type === 'success') {
+                toast.className = "fixed bottom-5 right-5 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-xl transform translate-y-0 opacity-100 transition-all duration-300 z-50 flex items-center";
+                icon.className = "fa-solid fa-circle-check text-secondary mr-3 text-xl";
+            } else if (type === 'error') {
+                toast.className = "fixed bottom-5 right-5 bg-red-600 text-white px-6 py-3 rounded-lg shadow-xl transform translate-y-0 opacity-100 transition-all duration-300 z-50 flex items-center";
+                icon.className = "fa-solid fa-circle-exclamation text-white mr-3 text-xl";
+            } else if (type === 'warning') {
+                toast.className = "fixed bottom-5 right-5 bg-accent text-white px-6 py-3 rounded-lg shadow-xl transform translate-y-0 opacity-100 transition-all duration-300 z-50 flex items-center";
+                icon.className = "fa-solid fa-triangle-exclamation text-white mr-3 text-xl";
+            }
+
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+    </script>
+</body>
+</html>
