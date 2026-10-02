@@ -135,6 +135,9 @@
                         <p class="text-sm text-gray-300">Manage students, view PINs, and update points.</p>
                     </div>
                     <div class="flex gap-2">
+                        <button onclick="showBulkAddModal()" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-lg shadow text-sm font-semibold transition">
+                            <i class="fa-solid fa-users text-white mr-1"></i> Bulk Add
+                        </button>
                         <button onclick="showAddStudentModal()" class="bg-secondary hover:bg-emerald-600 text-white py-2 px-4 rounded-lg shadow text-sm font-semibold transition">
                             <i class="fa-solid fa-plus mr-1"></i> Add Student
                         </button>
@@ -220,6 +223,27 @@
             <div class="flex justify-end space-x-2">
                 <button onclick="closeModals()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">Cancel</button>
                 <button onclick="saveNewStudent()" class="px-4 py-2 bg-secondary text-white rounded-lg shadow hover:bg-emerald-600 transition">Save Student</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Add Students Modal -->
+    <div id="bulkAddModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 p-4 fade-in">
+        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6">
+            <h3 class="text-xl font-bold mb-2 text-dark"><i class="fa-solid fa-users text-indigo-500 mr-2"></i> Bulk Add Students</h3>
+            <p class="text-sm text-gray-500 mb-4">Paste a list of student names below. Put each name on a new line. PINs will be auto-generated.</p>
+            
+            <textarea id="bulkStudentList" rows="8" class="w-full border border-gray-300 rounded-lg p-3 mb-4 focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm" placeholder="Alice Smith&#10;Bob Jones&#10;Charlie Brown"></textarea>
+            
+            <div class="flex justify-between items-center">
+                <div class="text-sm text-gray-600">
+                    Starting Points:
+                    <input type="number" id="bulkStartingPoints" value="0" class="w-20 border border-gray-300 rounded p-1 ml-2 focus:outline-none focus:ring-2 focus:ring-primary">
+                </div>
+                <div class="flex space-x-2">
+                    <button onclick="closeModals()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">Cancel</button>
+                    <button onclick="processBulkAdd()" class="px-4 py-2 bg-indigo-500 text-white rounded-lg shadow hover:bg-indigo-600 transition">Import List</button>
+                </div>
             </div>
         </div>
     </div>
@@ -598,6 +622,62 @@
             document.getElementById('adminLoginModal').classList.remove('flex');
             document.getElementById('addStudentModal').classList.add('hidden');
             document.getElementById('addStudentModal').classList.remove('flex');
+            document.getElementById('bulkAddModal').classList.add('hidden');
+            document.getElementById('bulkAddModal').classList.remove('flex');
+        }
+
+        function showBulkAddModal() {
+            document.getElementById('bulkAddModal').classList.remove('hidden');
+            document.getElementById('bulkAddModal').classList.add('flex');
+            document.getElementById('bulkStudentList').value = '';
+            document.getElementById('bulkStartingPoints').value = '0';
+            document.getElementById('bulkStudentList').focus();
+        }
+
+        function processBulkAdd() {
+            const rawList = document.getElementById('bulkStudentList').value;
+            const startingPoints = parseInt(document.getElementById('bulkStartingPoints').value) || 0;
+            
+            if (!rawList.trim()) {
+                showToast("Please enter at least one name.", "warning");
+                return;
+            }
+
+            // Split by newline and filter out empty lines
+            const names = rawList.split('\n')
+                                 .map(name => name.trim())
+                                 .filter(name => name.length > 0);
+
+            if (names.length === 0) {
+                showToast("No valid names found to import.", "warning");
+                return;
+            }
+
+            let addedCount = 0;
+
+            names.forEach(name => {
+                let pin;
+                let isUnique = false;
+                
+                // Ensure unique PINs during bulk generation
+                while (!isUnique) {
+                    pin = Math.floor(1000 + Math.random() * 9000).toString();
+                    isUnique = !students.some(s => s.pin === pin);
+                }
+
+                students.push({
+                    id: generateId(),
+                    name: name,
+                    pin: pin,
+                    points: startingPoints
+                });
+                addedCount++;
+            });
+
+            saveData();
+            closeModals();
+            renderAdminTable(document.getElementById('searchInput').value);
+            showToast(`Successfully imported ${addedCount} students!`, "success");
         }
 
         // UI Toast Notification Helper
