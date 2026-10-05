@@ -254,71 +254,115 @@
         <span id="toastMessage" class="font-medium">Action successful.</span>
     </div>
 
-    <script>
-        // --- Application State ---
-        // We use localStorage to persist data in the browser.
-        let students = JSON.parse(localStorage.getItem('pbis_students')) || [];
-        let currentSort = { column: 'name', asc: true };
-        const ADMIN_PASS = '122470'; // Hardcoded for this simple single-file app
+    <!-- ========================================== -->
+    <!-- FIREBASE AND JAVASCRIPT SETUP -->
+    <!-- ========================================== -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
 
-        // Initialize App on Load
-        window.onload = function() {
-            // Seed some dummy data if empty for demonstration purposes
-            if (students.length === 0) {
-                students = [
-                    { id: generateId(), name: "Alice Smith", pin: "1042", points: 25 },
-                    { id: generateId(), name: "Bob Jones", pin: "8593", points: 10 },
-                    { id: generateId(), name: "Charlie Brown", pin: "2201", points: 55 },
-                    { id: generateId(), name: "Diana Prince", pin: "9940", points: 120 }
-                ];
-                saveData();
-            }
-            populateStudentDropdown();
+        // ---------------------------------------------------------
+        // PASTE YOUR FIREBASE CONFIGURATION RIGHT BELOW THIS LINE
+        // ---------------------------------------------------------
+       const firebaseConfig = {
+  apiKey: "AIzaSyAi9jCji3yjvZwJCaZN2y6vflf97Gv212Y",
+  authDomain: "pbis-point-checker-f7981.firebaseapp.com",
+  projectId: "pbis-point-checker-f7981",
+  storageBucket: "pbis-point-checker-f7981.firebasestorage.app",
+  messagingSenderId: "582835295518",
+  appId: "1:582835295518:web:43fdbd20c377661998650f"
+};
         };
+        // ---------------------------------------------------------
 
-        // --- Core Functions ---
-        function generateId() {
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Application State
+        window.students = [];
+        window.currentSort = { column: 'name', asc: true };
+        const ADMIN_PASS = 'admin123'; 
+
+        // Listen for real-time updates from Firebase
+        onSnapshot(collection(db, "students"), (snapshot) => {
+            window.students = [];
+            snapshot.forEach((doc) => {
+                window.students.push({ id: doc.id, ...doc.data() });
+            });
+            window.populateStudentDropdown();
+            
+            // If admin view is open, refresh table
+            if (!document.getElementById('adminView').classList.contains('hidden')) {
+                window.renderAdminTable(document.getElementById('searchInput').value);
+            }
+
+            // If a student is currently looking at their dashboard, update their points live
+            const loggedInId = document.getElementById('studentSelect').value;
+            if (loggedInId && !document.getElementById('studentDashboard').classList.contains('hidden')) {
+                const updatedStudent = window.students.find(s => s.id === loggedInId);
+                if (updatedStudent) {
+                    const currentDisplayed = parseInt(document.getElementById('dashStudentPoints').innerText);
+                    window.animateValue("dashStudentPoints", currentDisplayed, updatedStudent.points, 1000);
+                    if(updatedStudent.points > currentDisplayed) {
+                        window.createConfetti(); // trigger confetti if points went up!
+                    }
+                }
+            }
+        });
+
+        // Core Functions exposed to window so HTML buttons can click them
+        window.generateId = function() {
             return Math.random().toString(36).substr(2, 9);
         }
 
-        function saveData() {
-            localStorage.setItem('pbis_students', JSON.stringify(students));
+        window.saveData = async function(studentData) {
+            try {
+                await setDoc(doc(db, "students", studentData.id), studentData);
+            } catch (e) {
+                console.error("Error adding document: ", e);
+                window.showToast("Database Error", "error");
+            }
         }
 
-        // --- View Switching Logic ---
-        function switchView(view) {
+        window.deleteData = async function(studentId) {
+            try {
+                await deleteDoc(doc(db, "students", studentId));
+            } catch (e) {
+                console.error("Error deleting document: ", e);
+            }
+        }
+
+        window.switchView = function(view) {
             document.getElementById('studentView').classList.add('hidden');
             document.getElementById('adminView').classList.add('hidden');
             
-            // Reset Student dashboard back to login form
             document.getElementById('studentLoginForm').classList.remove('hidden');
             document.getElementById('studentDashboard').classList.add('hidden');
             document.getElementById('studentPin').value = '';
             document.getElementById('studentSelect').value = '';
             document.getElementById('studentLoginError').classList.add('hidden');
 
-            // Reset Nav Buttons
             document.getElementById('navStudentBtn').className = "px-4 py-2 bg-primary border border-white text-white rounded-lg font-semibold shadow hover:bg-white hover:text-primary transition duration-200 mr-2";
             document.getElementById('navAdminBtn').className = "px-4 py-2 bg-primary border border-white text-white rounded-lg font-semibold shadow hover:bg-white hover:text-primary transition duration-200";
 
             if (view === 'student') {
                 document.getElementById('studentView').classList.remove('hidden');
                 document.getElementById('navStudentBtn').className = "px-4 py-2 bg-white text-primary rounded-lg font-semibold shadow hover:bg-gray-100 transition duration-200 mr-2";
-                populateStudentDropdown();
+                window.populateStudentDropdown();
             } else if (view === 'admin') {
                 document.getElementById('adminView').classList.remove('hidden');
                 document.getElementById('navAdminBtn').className = "px-4 py-2 bg-white text-primary rounded-lg font-semibold shadow hover:bg-gray-100 transition duration-200";
-                renderAdminTable();
+                window.renderAdminTable();
             }
         }
 
-        // --- Student Portal Logic ---
-        function populateStudentDropdown() {
+        window.populateStudentDropdown = function() {
             const select = document.getElementById('studentSelect');
+            const currentValue = select.value;
             select.innerHTML = '<option value="">-- Select your name --</option>';
             
-            // Sort alphabetically for dropdown
-            const sortedStudents = [...students].sort((a, b) => a.name.localeCompare(b.name));
+            const sortedStudents = [...window.students].sort((a, b) => a.name.localeCompare(b.name));
             
             sortedStudents.forEach(s => {
                 const opt = document.createElement('option');
@@ -326,9 +370,10 @@
                 opt.textContent = s.name;
                 select.appendChild(opt);
             });
+            if(currentValue) select.value = currentValue;
         }
 
-        function loginStudent() {
+        window.loginStudent = function() {
             const studentId = document.getElementById('studentSelect').value;
             const enteredPin = document.getElementById('studentPin').value;
             const errorDiv = document.getElementById('studentLoginError');
@@ -339,44 +384,35 @@
                 return;
             }
 
-            const student = students.find(s => s.id === studentId);
+            const student = window.students.find(s => s.id === studentId);
 
             if (student && student.pin === enteredPin) {
-                // Success
                 errorDiv.classList.add('hidden');
-                showStudentDashboard(student);
+                window.showStudentDashboard(student);
             } else {
-                // Fail
                 errorDiv.textContent = "Incorrect PIN. Please try again.";
                 errorDiv.classList.remove('hidden');
-                document.getElementById('studentPin').value = ''; // clear input
+                document.getElementById('studentPin').value = '';
             }
         }
 
-        function showStudentDashboard(student) {
+        window.showStudentDashboard = function(student) {
             document.getElementById('studentLoginForm').classList.add('hidden');
             document.getElementById('studentDashboard').classList.remove('hidden');
-            
             document.getElementById('dashStudentName').textContent = student.name;
-            
-            // Animate points counting up
-            animateValue("dashStudentPoints", 0, student.points, 1000);
-
-            // Simple confetti effect if points > 0
-            if(student.points > 0) {
-                createConfetti();
-            }
+            window.animateValue("dashStudentPoints", 0, student.points, 1000);
+            if(student.points > 0) window.createConfetti();
         }
 
-        function logoutStudent() {
+        window.logoutStudent = function() {
             document.getElementById('studentDashboard').classList.add('hidden');
             document.getElementById('studentLoginForm').classList.remove('hidden');
             document.getElementById('studentPin').value = '';
             document.getElementById('studentSelect').value = '';
-            document.getElementById('confettiContainer').innerHTML = ''; // Clear confetti
+            document.getElementById('confettiContainer').innerHTML = ''; 
         }
 
-        function animateValue(id, start, end, duration) {
+        window.animateValue = function(id, start, end, duration) {
             if (start === end) {
                 document.getElementById(id).innerHTML = end;
                 return;
@@ -385,14 +421,11 @@
             var current = start;
             var increment = end > start ? 1 : -1;
             var stepTime = Math.abs(Math.floor(duration / range));
-            var obj = document.getElementById(id);
-            
-            // Avoid too slow animation for small numbers, or too fast for large
             if(stepTime < 10) stepTime = 10;
             if(stepTime > 50) stepTime = 50;
-            
             increment = Math.ceil(range / (duration / stepTime));
 
+            var obj = document.getElementById(id);
             var timer = setInterval(function() {
                 current += increment;
                 if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
@@ -403,7 +436,7 @@
             }, stepTime);
         }
 
-        function createConfetti() {
+        window.createConfetti = function() {
             const container = document.getElementById('confettiContainer');
             container.innerHTML = '';
             const colors = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#3B82F6'];
@@ -417,7 +450,6 @@
                 conf.style.opacity = Math.random() + 0.5;
                 conf.style.transform = `rotate(${Math.random() * 360}deg)`;
                 
-                // Animation
                 const duration = Math.random() * 2 + 1;
                 conf.animate([
                     { transform: `translateY(0) rotate(0deg)`, opacity: 1 },
@@ -427,13 +459,11 @@
                     easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
                     fill: 'forwards'
                 });
-                
                 container.appendChild(conf);
             }
         }
 
-        // --- Admin/Teacher Logic ---
-        function showAdminLoginModal() {
+        window.showAdminLoginModal = function() {
             document.getElementById('adminLoginModal').classList.remove('hidden');
             document.getElementById('adminLoginModal').classList.add('flex');
             document.getElementById('adminPassword').value = '';
@@ -441,29 +471,27 @@
             document.getElementById('adminPassword').focus();
         }
 
-        function verifyAdmin() {
+        window.verifyAdmin = function() {
             const pass = document.getElementById('adminPassword').value;
             if (pass === ADMIN_PASS) {
-                closeModals();
-                switchView('admin');
-                showToast('Logged in successfully', 'success');
+                window.closeModals();
+                window.switchView('admin');
+                window.showToast('Logged in successfully', 'success');
             } else {
                 document.getElementById('adminLoginError').classList.remove('hidden');
             }
         }
 
-        // Allow Enter key to submit password
         document.getElementById('adminPassword').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') verifyAdmin();
+            if (e.key === 'Enter') window.verifyAdmin();
         });
 
-        function renderAdminTable(filterText = '') {
+        window.renderAdminTable = function(filterText = '') {
             const tbody = document.getElementById('studentTableBody');
             const emptyState = document.getElementById('emptyState');
             tbody.innerHTML = '';
 
-            let displayStudents = students.filter(s => s.name.toLowerCase().includes(filterText.toLowerCase()));
-
+            let displayStudents = window.students.filter(s => s.name.toLowerCase().includes(filterText.toLowerCase()));
             document.getElementById('totalStudentsCount').textContent = displayStudents.length;
 
             if (displayStudents.length === 0) {
@@ -473,16 +501,13 @@
                 emptyState.classList.add('hidden');
             }
 
-            // Sorting
             displayStudents.sort((a, b) => {
-                let valA = a[currentSort.column];
-                let valB = b[currentSort.column];
-                
+                let valA = a[window.currentSort.column];
+                let valB = b[window.currentSort.column];
                 if (typeof valA === 'string') valA = valA.toLowerCase();
                 if (typeof valB === 'string') valB = valB.toLowerCase();
-
-                if (valA < valB) return currentSort.asc ? -1 : 1;
-                if (valA > valB) return currentSort.asc ? 1 : -1;
+                if (valA < valB) return window.currentSort.asc ? -1 : 1;
+                if (valA > valB) return window.currentSort.asc ? 1 : -1;
                 return 0;
             });
 
@@ -521,56 +546,48 @@
             });
         }
 
-        function sortTable(column) {
-            if (currentSort.column === column) {
-                currentSort.asc = !currentSort.asc;
+        window.sortTable = function(column) {
+            if (window.currentSort.column === column) {
+                window.currentSort.asc = !window.currentSort.asc;
             } else {
-                currentSort.column = column;
-                currentSort.asc = true;
+                window.currentSort.column = column;
+                window.currentSort.asc = true;
             }
-            renderAdminTable(document.getElementById('searchInput').value);
+            window.renderAdminTable(document.getElementById('searchInput').value);
         }
 
-        function filterStudents() {
-            renderAdminTable(document.getElementById('searchInput').value);
+        window.filterStudents = function() {
+            window.renderAdminTable(document.getElementById('searchInput').value);
         }
 
-        function setPoints(studentId, newPoints) {
-            const index = students.findIndex(s => s.id === studentId);
-            if (index !== -1) {
+        window.setPoints = function(studentId, newPoints) {
+            const student = window.students.find(s => s.id === studentId);
+            if (student) {
                 let parsedPoints = parseInt(newPoints);
-                if (isNaN(parsedPoints) || parsedPoints < 0) {
-                    parsedPoints = 0; // Prevent negative or invalid values
-                }
+                if (isNaN(parsedPoints) || parsedPoints < 0) parsedPoints = 0;
                 
-                // Only update if the value actually changed
-                if (students[index].points !== parsedPoints) {
-                    students[index].points = parsedPoints;
-                    saveData();
-                    renderAdminTable(document.getElementById('searchInput').value);
-                    showToast(`Points for ${students[index].name} set to ${parsedPoints}.`, 'success');
+                if (student.points !== parsedPoints) {
+                    student.points = parsedPoints;
+                    window.saveData(student);
+                    window.showToast(`Points for ${student.name} set to ${parsedPoints}.`, 'success');
                 } else {
-                    // Re-render to clear any invalid typed input that didn't trigger an update
-                    renderAdminTable(document.getElementById('searchInput').value); 
+                    window.renderAdminTable(document.getElementById('searchInput').value); 
                 }
             }
         }
 
-        function modifyPoints(studentId, amount) {
-            const index = students.findIndex(s => s.id === studentId);
-            if (index !== -1) {
-                students[index].points += amount;
-                // Don't let points drop below 0 natively, unless you want negative balances
-                if (students[index].points < 0) students[index].points = 0; 
-                saveData();
-                renderAdminTable(document.getElementById('searchInput').value);
-                
+        window.modifyPoints = function(studentId, amount) {
+            const student = window.students.find(s => s.id === studentId);
+            if (student) {
+                student.points += amount;
+                if (student.points < 0) student.points = 0; 
+                window.saveData(student);
                 const actionStr = amount > 0 ? `Added ${amount}` : `Deducted ${Math.abs(amount)}`;
-                showToast(`${actionStr} points for ${students[index].name}.`, amount > 0 ? 'success' : 'warning');
+                window.showToast(`${actionStr} points for ${student.name}.`, amount > 0 ? 'success' : 'warning');
             }
         }
 
-        function showAddStudentModal() {
+        window.showAddStudentModal = function() {
             document.getElementById('addStudentModal').classList.remove('hidden');
             document.getElementById('addStudentModal').classList.add('flex');
             document.getElementById('newStudentName').value = '';
@@ -579,68 +596,53 @@
             document.getElementById('newStudentName').focus();
         }
 
-        function generateRandomPin() {
-            const pin = Math.floor(1000 + Math.random() * 9000).toString();
-            document.getElementById('newStudentPin').value = pin;
+        window.generateRandomPin = function() {
+            document.getElementById('newStudentPin').value = Math.floor(1000 + Math.random() * 9000).toString();
         }
 
-        function saveNewStudent() {
+        window.saveNewStudent = function() {
             const name = document.getElementById('newStudentName').value.trim();
             let pin = document.getElementById('newStudentPin').value.trim();
             let points = parseInt(document.getElementById('newStudentPoints').value) || 0;
 
-            if (!name) {
-                showToast("Student name is required.", "error");
-                return;
-            }
+            if (!name) return window.showToast("Student name is required.", "error");
 
             if (!pin) {
                 pin = Math.floor(1000 + Math.random() * 9000).toString();
             } else if (!/^\d{4}$/.test(pin)) {
-                showToast("PIN must be exactly 4 digits.", "error");
-                return;
+                return window.showToast("PIN must be exactly 4 digits.", "error");
             }
 
-            // Check for duplicate PINs (optional, but good practice)
-            if (students.some(s => s.pin === pin)) {
-                showToast("That PIN is already in use. Generating a new one...", "warning");
+            if (window.students.some(s => s.pin === pin)) {
+                window.showToast("That PIN is already in use. Generating a new one...", "warning");
                 pin = Math.floor(1000 + Math.random() * 9000).toString();
             }
 
-            const newStudent = {
-                id: generateId(),
-                name: name,
-                pin: pin,
-                points: points
-            };
-
-            students.push(newStudent);
-            saveData();
-            closeModals();
-            renderAdminTable(document.getElementById('searchInput').value);
-            showToast(`${name} added successfully!`, "success");
+            const newStudent = { id: window.generateId(), name: name, pin: pin, points: points };
+            window.saveData(newStudent);
+            window.closeModals();
+            window.showToast(`${name} added successfully!`, "success");
         }
 
-        function deleteStudent(studentId) {
-            const student = students.find(s => s.id === studentId);
+        window.deleteStudent = function(studentId) {
+            const student = window.students.find(s => s.id === studentId);
             if (confirm(`Are you sure you want to permanently delete ${student.name}?`)) {
-                students = students.filter(s => s.id !== studentId);
-                saveData();
-                renderAdminTable(document.getElementById('searchInput').value);
-                showToast(`${student.name} deleted.`, "success");
+                window.deleteData(studentId);
+                window.showToast(`${student.name} deleted.`, "success");
             }
         }
 
-        function confirmResetPoints() {
+        window.confirmResetPoints = function() {
             if (confirm("WARNING: Are you sure you want to reset ALL student points to ZERO? This cannot be undone.")) {
-                students.forEach(s => s.points = 0);
-                saveData();
-                renderAdminTable(document.getElementById('searchInput').value);
-                showToast("All student points reset to zero.", "warning");
+                window.students.forEach(s => {
+                    s.points = 0;
+                    window.saveData(s);
+                });
+                window.showToast("All student points reset to zero.", "warning");
             }
         }
 
-        function closeModals() {
+        window.closeModals = function() {
             document.getElementById('adminLoginModal').classList.add('hidden');
             document.getElementById('adminLoginModal').classList.remove('flex');
             document.getElementById('addStudentModal').classList.add('hidden');
@@ -649,7 +651,7 @@
             document.getElementById('bulkAddModal').classList.remove('flex');
         }
 
-        function showBulkAddModal() {
+        window.showBulkAddModal = function() {
             document.getElementById('bulkAddModal').classList.remove('hidden');
             document.getElementById('bulkAddModal').classList.add('flex');
             document.getElementById('bulkStudentList').value = '';
@@ -657,55 +659,33 @@
             document.getElementById('bulkStudentList').focus();
         }
 
-        function processBulkAdd() {
+        window.processBulkAdd = async function() {
             const rawList = document.getElementById('bulkStudentList').value;
             const startingPoints = parseInt(document.getElementById('bulkStartingPoints').value) || 0;
             
-            if (!rawList.trim()) {
-                showToast("Please enter at least one name.", "warning");
-                return;
-            }
+            if (!rawList.trim()) return window.showToast("Please enter at least one name.", "warning");
 
-            // Split by newline and filter out empty lines
-            const names = rawList.split('\n')
-                                 .map(name => name.trim())
-                                 .filter(name => name.length > 0);
-
-            if (names.length === 0) {
-                showToast("No valid names found to import.", "warning");
-                return;
-            }
+            const names = rawList.split('\n').map(n => n.trim()).filter(n => n.length > 0);
+            if (names.length === 0) return window.showToast("No valid names found to import.", "warning");
 
             let addedCount = 0;
-
-            names.forEach(name => {
+            for (const name of names) {
                 let pin;
                 let isUnique = false;
-                
-                // Ensure unique PINs during bulk generation
                 while (!isUnique) {
                     pin = Math.floor(1000 + Math.random() * 9000).toString();
-                    isUnique = !students.some(s => s.pin === pin);
+                    isUnique = !window.students.some(s => s.pin === pin);
                 }
-
-                students.push({
-                    id: generateId(),
-                    name: name,
-                    pin: pin,
-                    points: startingPoints
-                });
+                await window.saveData({ id: window.generateId(), name: name, pin: pin, points: startingPoints });
                 addedCount++;
-            });
+            }
 
-            saveData();
-            closeModals();
-            renderAdminTable(document.getElementById('searchInput').value);
-            showToast(`Successfully imported ${addedCount} students!`, "success");
+            window.closeModals();
+            window.showToast(`Successfully imported ${addedCount} students!`, "success");
         }
 
-        // UI Toast Notification Helper
         let toastTimeout;
-        function showToast(message, type = 'success') {
+        window.showToast = function(message, type = 'success') {
             const toast = document.getElementById('toastNotification');
             const icon = document.getElementById('toastIcon');
             const msgSpan = document.getElementById('toastMessage');
@@ -729,7 +709,6 @@
                 toast.classList.add('translate-y-20', 'opacity-0');
             }, 3000);
         }
-
     </script>
 </body>
 </html>
