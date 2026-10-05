@@ -120,9 +120,6 @@
                     <i class="fa-solid fa-arrow-left mr-1"></i> Sign Out
                 </button>
 
-                <!-- Personal Rank Banner (Dynamically injected) -->
-                <div id="studentRankBanner" class="hidden mb-6 p-4 rounded-lg shadow border flex items-center justify-center space-x-3 transition-all"></div>
-
                 <!-- Personal Points Section -->
                 <h3 class="text-xl font-semibold text-gray-700 mb-2"><span id="dashStudentName" class="text-primary font-bold"></span>'s Points</h3>
                 <p class="text-gray-500 mb-6">Your current PBIS balance:</p>
@@ -311,7 +308,6 @@
                 if (updatedStudent) {
                     const currentDisplayed = parseInt(document.getElementById('dashStudentPoints').innerText);
                     window.animateValue("dashStudentPoints", currentDisplayed, updatedStudent.points, 1000);
-                    window.updatePersonalRank(loggedInId);
                     if(updatedStudent.points > currentDisplayed) {
                         window.createConfetti();
                     }
@@ -365,6 +361,7 @@
         }
 
         window.renderLeaderboard = function() {
+            // Safely parse points to ensure accurate math
             const top5 = [...window.students]
                 .map(s => ({ ...s, points: parseInt(s.points) || 0 }))
                 .filter(s => s.points > 0)
@@ -395,53 +392,6 @@
             });
 
             board.innerHTML = html;
-        }
-
-        window.updatePersonalRank = function(studentId) {
-            const banner = document.getElementById('studentRankBanner');
-            
-            // Calculate ranks
-            const sorted = [...window.students]
-                .map(s => ({ ...s, points: parseInt(s.points) || 0 }))
-                .filter(s => s.points > 0)
-                .sort((a, b) => b.points - a.points);
-
-            const rankIndex = sorted.findIndex(s => s.id === studentId);
-            const rank = rankIndex + 1;
-
-            if (rankIndex !== -1 && rank <= 5) {
-                banner.classList.remove('hidden');
-                
-                let icon = '';
-                let bgClass = '';
-                let borderClass = '';
-                let textClass = '';
-                let suffix = rank === 1 ? 'st' : rank === 2 ? 'nd' : rank === 3 ? 'rd' : 'th';
-
-                if (rank === 1) {
-                    icon = '<i class="fa-solid fa-medal text-yellow-500 text-3xl"></i>';
-                    bgClass = 'bg-yellow-50'; borderClass = 'border-yellow-200'; textClass = 'text-yellow-800';
-                } else if (rank === 2) {
-                    icon = '<i class="fa-solid fa-medal text-gray-400 text-3xl"></i>';
-                    bgClass = 'bg-gray-50'; borderClass = 'border-gray-200'; textClass = 'text-gray-800';
-                } else if (rank === 3) {
-                    icon = '<i class="fa-solid fa-medal text-amber-700 text-3xl"></i>';
-                    bgClass = 'bg-orange-50'; borderClass = 'border-orange-200'; textClass = 'text-orange-900';
-                } else {
-                    icon = `<span class="bg-indigo-500 text-white font-bold rounded-full w-8 h-8 flex items-center justify-center text-lg">${rank}</span>`;
-                    bgClass = 'bg-indigo-50'; borderClass = 'border-indigo-200'; textClass = 'text-indigo-800';
-                }
-
-                banner.className = `mb-6 p-4 rounded-xl shadow-sm border-2 flex items-center justify-center space-x-3 transition-all ${bgClass} ${borderClass} ${textClass}`;
-                banner.innerHTML = `
-                    ${icon}
-                    <div class="font-bold text-lg">
-                        You are currently in ${rank}${suffix} Place!
-                    </div>
-                `;
-            } else {
-                banner.classList.add('hidden');
-            }
         }
 
         window.populateStudentDropdown = function() {
@@ -488,7 +438,6 @@
             document.getElementById('studentDashboard').classList.remove('hidden');
             document.getElementById('dashStudentName').textContent = student.name;
             window.animateValue("dashStudentPoints", 0, student.points, 1000);
-            window.updatePersonalRank(student.id);
             if(student.points > 0) window.createConfetti();
         }
 
