@@ -307,7 +307,7 @@
         </div>
     </div>
 
-    <!-- Bulk Add Students Modal (Names Only) -->
+    <!-- Bulk Add Students Modal -->
     <div id="bulkAddModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 p-4 fade-in">
         <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6">
             <h3 class="text-xl font-bold mb-2 text-dark"><i class="fa-solid fa-users text-indigo-500 mr-2"></i> Bulk Add New Students</h3>
@@ -359,11 +359,11 @@
         </div>
     </div>
 
-    <!-- Import Points from Google Sheets/CSV Modal -->
+    <!-- Import Points Modal -->
     <div id="importModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 p-4 fade-in">
         <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6">
             <h3 class="text-xl font-bold mb-2 text-dark"><i class="fa-solid fa-file-excel text-green-600 mr-2"></i> Import Spreadsheet Data</h3>
-            <p class="text-sm text-gray-500 mb-4">Paste two columns directly from Google Sheets or Excel: <strong>Name</strong> in column 1, and <strong>Points</strong> in column 2. The system will match the names automatically.</p>
+            <p class="text-sm text-gray-500 mb-4">Paste two columns directly from Google Sheets or Excel: <strong>Name</strong> in column 1, and <strong>Points</strong> in column 2.</p>
             
             <textarea id="importPasteArea" rows="6" class="w-full border border-gray-300 rounded-lg p-3 mb-2 focus:outline-none focus:ring-2 focus:ring-green-500 font-mono text-sm whitespace-pre" placeholder="Jane Doe&#9;15&#10;John Smith&#9;5&#10;Charlie Brown&#9;10"></textarea>
             
@@ -396,6 +396,9 @@
         <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
             <h3 class="text-xl font-bold mb-2 text-dark"><i class="fa-solid fa-award text-purple-600 mr-2"></i> Print Certificates</h3>
             <p class="text-sm text-gray-500 mb-4">Generate and print PBIS achievement certificates for your top earners.</p>
+            
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="certSchoolName">School Name (Optional)</label>
+            <input type="text" id="certSchoolName" class="w-full border border-gray-300 rounded-lg p-3 mb-4 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="e.g. Lincoln High School">
             
             <label class="block text-gray-700 text-sm font-bold mb-2" for="certSelect">Who gets a certificate?</label>
             <select id="certSelect" class="w-full border border-gray-300 rounded-lg p-3 mb-6 focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold text-gray-700">
@@ -1005,10 +1008,12 @@
         window.showCertificateModal = function() {
             document.getElementById('certificateModal').classList.remove('hidden');
             document.getElementById('certificateModal').classList.add('flex');
+            document.getElementById('certSchoolName').value = ''; // Reset school name
         }
 
         window.generateCertificates = function() {
             const option = document.getElementById('certSelect').value;
+            const schoolName = document.getElementById('certSchoolName').value.trim();
             const topN = option === 'all' ? window.students.length : parseInt(option);
             
             const sorted = [...window.students]
@@ -1033,7 +1038,7 @@
                     .cert-border { height: 100%; box-sizing: border-box; text-align: center; background: #F8FAFC; position: relative; padding: 40px; }
                     h1 { font-family: 'Playfair Display', serif; color: #1F2937; font-size: 56px; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 2px;}
                     h2 { font-size: 24px; margin: 0; letter-spacing: 4px; text-transform: uppercase; font-weight: bold;}
-                    .content { font-size: 22px; color: #4B5563; margin-top: 40px; }
+                    .content { font-size: 22px; color: #4B5563; margin-top: 20px; }
                     .student-name { font-family: 'Playfair Display', serif; font-size: 64px; color: #1F2937; font-weight: bold; margin: 20px 0; border-bottom: 2px solid #D1D5DB; display: inline-block; min-width: 50%; padding-bottom: 10px; }
                     .points { font-size: 32px; font-weight: bold; color: #10B981; background: #D1FAE5; padding: 10px 30px; border-radius: 50px; display: inline-block; margin-top: 20px;}
                     .footer { position: absolute; bottom: 40px; width: calc(100% - 80px); display: flex; justify-content: space-between; }
@@ -1069,9 +1074,12 @@
                     borderStyle = 'border: 12px double #B45309; background: #FFFBEB;';
                 }
 
+                let schoolHeader = schoolName ? `<div style="font-size: 20px; font-weight: bold; color: #6B7280; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px;">${schoolName}</div>` : '';
+
                 html += `
                 <div class="cert-page">
                     <div class="cert-border" style="${borderStyle}">
+                        ${schoolHeader}
                         ${rankBadge}
                         <h1>Certificate of Achievement</h1>
                         <h2>${rankTitle}</h2>
