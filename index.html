@@ -6,6 +6,8 @@
     <title>PBIS Points Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- QR Code Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -83,10 +85,30 @@
                 <div class="bg-primary p-6 text-center text-white">
                     <i class="fa-solid fa-id-card text-5xl mb-3 text-accent"></i>
                     <h2 class="text-2xl font-bold">Check Your Points</h2>
-                    <p class="text-sm opacity-90">Select your name and enter your PIN.</p>
+                    <p class="text-sm opacity-90">Scan your QR code or login below.</p>
                 </div>
                 
                 <div id="studentLoginForm" class="p-6">
+                    
+                    <!-- QR Scanner Section -->
+                    <button id="startScanBtn" onclick="startScanner()" class="w-full bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold py-3 px-4 rounded-lg shadow-sm transition duration-200 flex justify-center items-center text-lg mb-4">
+                        <i class="fa-solid fa-qrcode mr-2"></i> Scan QR Code to Login
+                    </button>
+
+                    <div id="qrScannerContainer" class="hidden mb-4">
+                        <div class="rounded-lg overflow-hidden border-2 border-indigo-200">
+                            <div id="qr-reader" class="w-full bg-black"></div>
+                        </div>
+                        <button onclick="stopScanner()" class="mt-2 w-full bg-red-50 hover:bg-red-100 text-red-600 font-semibold py-2 px-4 rounded-lg transition duration-200">
+                            Cancel Scan
+                        </button>
+                    </div>
+
+                    <div class="flex items-center my-4 before:flex-1 before:border-t before:border-gray-200 before:mt-0.5 after:flex-1 after:border-t after:border-gray-200 after:mt-0.5">
+                        <p class="text-center font-semibold mx-4 mb-0 text-gray-400 text-sm">OR</p>
+                    </div>
+
+                    <!-- Manual Login Section -->
                     <div class="mb-5">
                         <label class="block text-gray-700 text-sm font-bold mb-2" for="studentSelect">Who are you?</label>
                         <div class="relative">
@@ -109,7 +131,7 @@
                     </div>
 
                     <button onclick="loginStudent()" class="w-full bg-secondary hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-lg shadow-md transition duration-200 flex justify-center items-center text-lg">
-                        <i class="fa-solid fa-unlock mr-2"></i> Check Points
+                        <i class="fa-solid fa-unlock mr-2"></i> Manual Login
                     </button>
                 </div>
             </div>
@@ -325,6 +347,8 @@
         window.students = [];
         window.currentSort = { column: 'name', asc: true };
         const ADMIN_PASS = '122470'; 
+        
+        let html5QrCode = null; // Variable for QR Scanner
 
         onSnapshot(collection(db, "students"), (snapshot) => {
             window.students = [];
@@ -374,7 +398,65 @@
             }
         }
 
+        // ==========================================
+        // QR SCANNER LOGIC
+        // ==========================================
+        window.startScanner = function() {
+            document.getElementById('startScanBtn').classList.add('hidden');
+            document.getElementById('qrScannerContainer').classList.remove('hidden');
+            document.getElementById('studentLoginError').classList.add('hidden');
+
+            html5QrCode = new Html5Qrcode("qr-reader");
+            html5QrCode.start(
+                { facingMode: "environment" }, 
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                (decodedText) => {
+                    // On success: Decode text, find student, stop scanner, log them in.
+                    window.onQRScanSuccess(decodedText);
+                },
+                (errorMessage) => {
+                    // Ignore background scan errors
+                }
+            ).catch((err) => {
+                console.log(err);
+                window.showToast("Camera access denied or unavailable.", "error");
+                window.stopScanner();
+            });
+        }
+
+        window.stopScanner = function() {
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().then(() => {
+                    html5QrCode.clear();
+                }).catch((err) => console.log(err));
+            }
+            document.getElementById('qrScannerContainer').classList.add('hidden');
+            document.getElementById('startScanBtn').classList.remove('hidden');
+        }
+
+        window.onQRScanSuccess = function(scannedCode) {
+            const trimmedCode = scannedCode.trim();
+            // Check if the QR code matches a PIN or a student ID
+            const student = window.students.find(s => s.pin === trimmedCode || s.id === trimmedCode);
+            
+            if (student) {
+                window.stopScanner();
+                document.getElementById('studentLoginError').classList.add('hidden');
+                
+                // Select their name in the dropdown invisibly to keep state synced
+                document.getElementById('studentSelect').value = student.id; 
+                
+                window.showStudentDashboard(student);
+                window.showToast(`Logged in successfully!`, "success");
+            } else {
+                document.getElementById('studentLoginError').textContent = "QR Code not recognized. Try again.";
+                document.getElementById('studentLoginError').classList.remove('hidden');
+            }
+        }
+
         window.switchView = function(view) {
+            window.stopScanner(); // Turn off camera if they switch views
+            
             document.getElementById('studentView').classList.add('hidden');
             document.getElementById('adminView').classList.add('hidden');
             
@@ -552,6 +634,7 @@
         }
 
         window.logoutStudent = function() {
+            window.stopScanner(); // Safety measure
             document.getElementById('studentDashboard').classList.add('hidden');
             document.getElementById('studentLoginContainer').classList.remove('hidden');
             document.getElementById('studentPin').value = '';
