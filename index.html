@@ -173,12 +173,18 @@
                         <h2 class="text-2xl font-bold"><i class="fa-solid fa-users-gear text-accent mr-2"></i> Class Management</h2>
                         <p class="text-sm text-gray-300">Manage students, view PINs, and update points.</p>
                     </div>
-                    <div class="flex gap-2">
-                        <button onclick="showBulkAddModal()" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-lg shadow text-sm font-semibold transition">
-                            <i class="fa-solid fa-users text-white mr-1"></i> Bulk Add
+                    <div class="flex gap-2 flex-wrap justify-end">
+                        <button onclick="showBulkAddModal()" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-lg shadow text-sm font-semibold transition" title="Add multiple new students at once">
+                            <i class="fa-solid fa-users mr-1"></i> Bulk Add
                         </button>
                         <button onclick="showAddStudentModal()" class="bg-secondary hover:bg-emerald-600 text-white py-2 px-4 rounded-lg shadow text-sm font-semibold transition">
-                            <i class="fa-solid fa-plus mr-1"></i> Add Student
+                            <i class="fa-solid fa-user-plus mr-1"></i> Add Student
+                        </button>
+                        <button onclick="showBulkUpdateModal()" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg shadow text-sm font-semibold transition" title="Apply the exact same points to multiple selected students">
+                            <i class="fa-solid fa-list-check mr-1"></i> Bulk Update
+                        </button>
+                        <button onclick="showImportModal()" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg shadow text-sm font-semibold transition" title="Import unique points for each student from Google Sheets">
+                            <i class="fa-solid fa-file-excel mr-1"></i> Import Sheet
                         </button>
                         <button onclick="confirmResetPoints()" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg shadow text-sm font-semibold transition">
                             <i class="fa-solid fa-rotate-left mr-1"></i> Reset All Points
@@ -298,10 +304,10 @@
         </div>
     </div>
 
-    <!-- Bulk Add Students Modal -->
+    <!-- Bulk Add Students Modal (Names Only) -->
     <div id="bulkAddModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 p-4 fade-in">
         <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6">
-            <h3 class="text-xl font-bold mb-2 text-dark"><i class="fa-solid fa-users text-indigo-500 mr-2"></i> Bulk Add Students</h3>
+            <h3 class="text-xl font-bold mb-2 text-dark"><i class="fa-solid fa-users text-indigo-500 mr-2"></i> Bulk Add New Students</h3>
             <p class="text-sm text-gray-500 mb-4">Paste a list of student names below. Put each name on a new line. PINs will be auto-generated.</p>
             
             <textarea id="bulkStudentList" rows="8" class="w-full border border-gray-300 rounded-lg p-3 mb-4 focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm" placeholder="Alice Smith&#10;Bob Jones&#10;Charlie Brown"></textarea>
@@ -314,6 +320,69 @@
                 <div class="flex space-x-2">
                     <button onclick="closeModals()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">Cancel</button>
                     <button onclick="processBulkAdd()" class="px-4 py-2 bg-indigo-500 text-white rounded-lg shadow hover:bg-indigo-600 transition">Import List</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Update Points Modal (Checkbox method) -->
+    <div id="bulkUpdateModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 p-4 fade-in">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 flex flex-col max-h-[90vh]">
+            <h3 class="text-xl font-bold mb-2 text-dark"><i class="fa-solid fa-list-check text-blue-500 mr-2"></i> Bulk Update Points</h3>
+            <p class="text-sm text-gray-500 mb-4">Select students and apply the same points to all of them at once.</p>
+            
+            <div class="flex space-x-2 mb-4">
+                <select id="bulkUpdateAction" class="w-1/2 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-primary font-semibold text-gray-700">
+                    <option value="add">Add Points (+)</option>
+                    <option value="subtract">Subtract (-)</option>
+                    <option value="set">Set Exact (=)</option>
+                </select>
+                <input type="number" id="bulkUpdateAmount" value="0" min="0" class="w-1/2 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-primary font-bold text-center" placeholder="Amount">
+            </div>
+
+            <div class="flex justify-between items-center mb-2 px-1">
+                <label class="font-bold text-sm text-gray-700">Select Students:</label>
+                <button onclick="toggleBulkUpdateSelectAll()" id="bulkUpdateSelectAllBtn" class="text-xs text-primary font-semibold hover:underline" data-selected="false">Select All</button>
+            </div>
+            
+            <div class="overflow-y-auto flex-grow border border-gray-200 rounded-lg p-2 mb-4 bg-gray-50 min-h-[150px]" id="bulkUpdateStudentList">
+                <!-- Checkboxes populated via JS -->
+            </div>
+            
+            <div class="flex justify-end space-x-2 pt-2 border-t border-gray-200">
+                <button onclick="closeModals()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">Cancel</button>
+                <button onclick="applyBulkUpdate()" class="px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition">Apply Updates</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Points from Google Sheets/CSV Modal -->
+    <div id="importModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 p-4 fade-in">
+        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6">
+            <h3 class="text-xl font-bold mb-2 text-dark"><i class="fa-solid fa-file-excel text-green-600 mr-2"></i> Import Spreadsheet Data</h3>
+            <p class="text-sm text-gray-500 mb-4">Paste two columns directly from Google Sheets or Excel: <strong>Name</strong> in column 1, and <strong>Points</strong> in column 2. The system will match the names automatically.</p>
+            
+            <textarea id="importPasteArea" rows="6" class="w-full border border-gray-300 rounded-lg p-3 mb-2 focus:outline-none focus:ring-2 focus:ring-green-500 font-mono text-sm whitespace-pre" placeholder="Jane Doe&#9;15&#10;John Smith&#9;5&#10;Charlie Brown&#9;10"></textarea>
+            
+            <div class="flex items-center my-3 before:flex-1 before:border-t before:border-gray-200 before:mt-0.5 after:flex-1 after:border-t after:border-gray-200 after:mt-0.5">
+                <p class="text-center font-semibold mx-4 mb-0 text-gray-400 text-xs">OR UPLOAD .CSV</p>
+            </div>
+
+            <div class="mb-4">
+                <input type="file" id="importFileInput" accept=".csv" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 transition cursor-pointer">
+            </div>
+            
+            <div class="flex justify-between items-center mt-2 border-t border-gray-200 pt-4">
+                <div class="text-sm text-gray-600 flex items-center">
+                    Action: 
+                    <select id="importAction" class="ml-2 border border-gray-300 rounded p-1 focus:outline-none focus:ring-2 focus:ring-green-500">
+                        <option value="add">Add Points (+)</option>
+                        <option value="set">Set Exact Points (=)</option>
+                    </select>
+                </div>
+                <div class="flex space-x-2">
+                    <button onclick="closeModals()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">Cancel</button>
+                    <button onclick="processImport()" class="px-4 py-2 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition">Import Data</button>
                 </div>
             </div>
         </div>
@@ -348,7 +417,7 @@
         window.currentSort = { column: 'name', asc: true };
         const ADMIN_PASS = '122470'; 
         
-        let html5QrCode = null; // Variable for QR Scanner
+        let html5QrCode = null;
 
         onSnapshot(collection(db, "students"), (snapshot) => {
             window.students = [];
@@ -398,9 +467,6 @@
             }
         }
 
-        // ==========================================
-        // QR SCANNER LOGIC
-        // ==========================================
         window.startScanner = function() {
             document.getElementById('startScanBtn').classList.add('hidden');
             document.getElementById('qrScannerContainer').classList.remove('hidden');
@@ -411,12 +477,9 @@
                 { facingMode: "environment" }, 
                 { fps: 10, qrbox: { width: 250, height: 250 } },
                 (decodedText) => {
-                    // On success: Decode text, find student, stop scanner, log them in.
                     window.onQRScanSuccess(decodedText);
                 },
-                (errorMessage) => {
-                    // Ignore background scan errors
-                }
+                (errorMessage) => { }
             ).catch((err) => {
                 console.log(err);
                 window.showToast("Camera access denied or unavailable.", "error");
@@ -436,16 +499,12 @@
 
         window.onQRScanSuccess = function(scannedCode) {
             const trimmedCode = scannedCode.trim();
-            // Check if the QR code matches a PIN or a student ID
             const student = window.students.find(s => s.pin === trimmedCode || s.id === trimmedCode);
             
             if (student) {
                 window.stopScanner();
                 document.getElementById('studentLoginError').classList.add('hidden');
-                
-                // Select their name in the dropdown invisibly to keep state synced
                 document.getElementById('studentSelect').value = student.id; 
-                
                 window.showStudentDashboard(student);
                 window.showToast(`Logged in successfully!`, "success");
             } else {
@@ -455,7 +514,7 @@
         }
 
         window.switchView = function(view) {
-            window.stopScanner(); // Turn off camera if they switch views
+            window.stopScanner(); 
             
             document.getElementById('studentView').classList.add('hidden');
             document.getElementById('adminView').classList.add('hidden');
@@ -634,7 +693,7 @@
         }
 
         window.logoutStudent = function() {
-            window.stopScanner(); // Safety measure
+            window.stopScanner(); 
             document.getElementById('studentDashboard').classList.add('hidden');
             document.getElementById('studentLoginContainer').classList.remove('hidden');
             document.getElementById('studentPin').value = '';
@@ -917,8 +976,97 @@
             }
         }
 
+        window.showBulkUpdateModal = function() {
+            document.getElementById('bulkUpdateModal').classList.remove('hidden');
+            document.getElementById('bulkUpdateModal').classList.add('flex');
+            document.getElementById('bulkUpdateAmount').value = '0';
+            document.getElementById('bulkUpdateAction').value = 'add';
+            
+            const listContainer = document.getElementById('bulkUpdateStudentList');
+            listContainer.innerHTML = '';
+            
+            const sortedStudents = [...window.students].sort((a, b) => a.name.localeCompare(b.name));
+            
+            if (sortedStudents.length === 0) {
+                listContainer.innerHTML = '<p class="text-gray-500 text-center text-sm p-4">No students available.</p>';
+            } else {
+                sortedStudents.forEach(student => {
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center p-2 hover:bg-gray-200 rounded cursor-pointer transition border-b border-gray-100 last:border-0';
+                    div.innerHTML = `
+                        <input type="checkbox" id="chk_${student.id}" value="${student.id}" class="bulk-student-checkbox w-4 h-4 text-primary bg-white border-gray-300 rounded focus:ring-primary mr-3 cursor-pointer">
+                        <label for="chk_${student.id}" class="flex-grow cursor-pointer text-sm font-medium text-gray-700">${student.name} <span class="text-xs text-gray-400 ml-1">(${student.points} pts)</span></label>
+                    `;
+                    listContainer.appendChild(div);
+                });
+            }
+            
+            const btn = document.getElementById('bulkUpdateSelectAllBtn');
+            btn.textContent = 'Select All';
+            btn.dataset.selected = 'false';
+        }
+
+        window.toggleBulkUpdateSelectAll = function() {
+            const btn = document.getElementById('bulkUpdateSelectAllBtn');
+            const checkboxes = document.querySelectorAll('.bulk-student-checkbox');
+            const isSelected = btn.dataset.selected === 'true';
+
+            checkboxes.forEach(cb => cb.checked = !isSelected);
+            
+            if (isSelected) {
+                btn.textContent = 'Select All';
+                btn.dataset.selected = 'false';
+            } else {
+                btn.textContent = 'Deselect All';
+                btn.dataset.selected = 'true';
+            }
+        }
+
+        window.applyBulkUpdate = async function() {
+            const action = document.getElementById('bulkUpdateAction').value;
+            const amount = parseInt(document.getElementById('bulkUpdateAmount').value) || 0;
+            const checkboxes = document.querySelectorAll('.bulk-student-checkbox:checked');
+            
+            if (checkboxes.length === 0) {
+                return window.showToast("Please select at least one student.", "warning");
+            }
+            
+            if (amount < 0 || (amount === 0 && action !== 'set')) {
+                 return window.showToast("Please enter a valid amount.", "error");
+            }
+
+            let updateCount = 0;
+            
+            for (const cb of checkboxes) {
+                const studentId = cb.value;
+                const student = window.students.find(s => s.id === studentId);
+                
+                if (student) {
+                    let newPoints = parseInt(student.points) || 0;
+                    
+                    if (action === 'add') {
+                        newPoints += amount;
+                    } else if (action === 'subtract') {
+                        newPoints -= amount;
+                        if (newPoints < 0) newPoints = 0;
+                    } else if (action === 'set') {
+                        newPoints = amount;
+                    }
+                    
+                    if (student.points !== newPoints) {
+                        student.points = newPoints;
+                        await window.saveData(student);
+                        updateCount++;
+                    }
+                }
+            }
+            
+            window.closeModals();
+            window.showToast(`Successfully updated ${updateCount} student(s)!`, "success");
+        }
+
         window.closeModals = function() {
-            const modals = ['adminLoginModal', 'addStudentModal', 'bulkAddModal', 'editStudentModal'];
+            const modals = ['adminLoginModal', 'addStudentModal', 'bulkAddModal', 'editStudentModal', 'bulkUpdateModal', 'importModal'];
             modals.forEach(id => {
                 document.getElementById(id).classList.add('hidden');
                 document.getElementById(id).classList.remove('flex');
@@ -956,6 +1104,79 @@
 
             window.closeModals();
             window.showToast(`Successfully imported ${addedCount} students!`, "success");
+        }
+
+        // ==========================================
+        // SPREADSHEET IMPORT LOGIC
+        // ==========================================
+        window.showImportModal = function() {
+            document.getElementById('importModal').classList.remove('hidden');
+            document.getElementById('importModal').classList.add('flex');
+            document.getElementById('importPasteArea').value = '';
+            document.getElementById('importFileInput').value = '';
+        }
+
+        window.processImport = async function() {
+            const action = document.getElementById('importAction').value; // 'add' or 'set'
+            const fileInput = document.getElementById('importFileInput');
+            const pastedData = document.getElementById('importPasteArea').value;
+
+            let rawData = "";
+
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                rawData = await file.text();
+            } else if (pastedData.trim() !== "") {
+                rawData = pastedData;
+            } else {
+                return window.showToast("Please paste data or upload a CSV file.", "warning");
+            }
+
+            const lines = rawData.split(/\r?\n/).filter(line => line.trim().length > 0);
+            let updatedCount = 0;
+            let notFoundCount = 0;
+
+            for (const line of lines) {
+                // Handle pasting directly from Sheets (tab-separated) or CSV (comma-separated)
+                let parts = line.split('\t');
+                if (parts.length < 2) {
+                    parts = line.split(',');
+                }
+                
+                if (parts.length >= 2) {
+                    // Remove quotes common in CSV files
+                    const name = parts[0].trim().replace(/^"|"$/g, ''); 
+                    const pointsValue = parseInt(parts[1].trim().replace(/^"|"$/g, ''));
+
+                    if (name && !isNaN(pointsValue)) {
+                        const student = window.students.find(s => s.name.toLowerCase() === name.toLowerCase());
+                        if (student) {
+                            let currentPts = parseInt(student.points) || 0;
+                            if (action === 'add') {
+                                currentPts += pointsValue;
+                            } else if (action === 'set') {
+                                currentPts = pointsValue;
+                            }
+                            if (currentPts < 0) currentPts = 0;
+                            
+                            student.points = currentPts;
+                            await window.saveData(student);
+                            updatedCount++;
+                        } else {
+                            notFoundCount++;
+                        }
+                    }
+                }
+            }
+
+            window.closeModals();
+            if (updatedCount > 0) {
+                let msg = `Successfully updated ${updatedCount} student(s).`;
+                if (notFoundCount > 0) msg += ` (${notFoundCount} names not found in system).`;
+                window.showToast(msg, "success");
+            } else {
+                window.showToast(`No students updated. Check your format or make sure names match perfectly.`, "error");
+            }
         }
 
         let toastTimeout;
