@@ -1002,9 +1002,6 @@
             }
         }
 
-        // ==========================================
-        // CERTIFICATE EXPORT LOGIC
-        // ==========================================
         window.showCertificateModal = function() {
             document.getElementById('certificateModal').classList.remove('hidden');
             document.getElementById('certificateModal').classList.add('flex');
@@ -1028,13 +1025,14 @@
             <html>
             <head>
                 <title>PBIS Certificates</title>
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
                 <style>
                     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Inter:wght@400;700&display=swap');
                     body { font-family: 'Inter', sans-serif; background: #fff; margin: 0; padding: 0; }
                     .cert-page { width: 11in; height: 8.5in; box-sizing: border-box; padding: 0.5in; page-break-after: always; position: relative; }
-                    .cert-border { border: 12px double #4F46E5; height: 100%; box-sizing: border-box; text-align: center; background: #F8FAFC; position: relative; padding: 40px; }
+                    .cert-border { height: 100%; box-sizing: border-box; text-align: center; background: #F8FAFC; position: relative; padding: 40px; }
                     h1 { font-family: 'Playfair Display', serif; color: #1F2937; font-size: 56px; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 2px;}
-                    h2 { color: #4F46E5; font-size: 24px; margin: 0; letter-spacing: 4px; text-transform: uppercase; font-weight: bold;}
+                    h2 { font-size: 24px; margin: 0; letter-spacing: 4px; text-transform: uppercase; font-weight: bold;}
                     .content { font-size: 22px; color: #4B5563; margin-top: 40px; }
                     .student-name { font-family: 'Playfair Display', serif; font-size: 64px; color: #1F2937; font-weight: bold; margin: 20px 0; border-bottom: 2px solid #D1D5DB; display: inline-block; min-width: 50%; padding-bottom: 10px; }
                     .points { font-size: 32px; font-weight: bold; color: #10B981; background: #D1FAE5; padding: 10px 30px; border-radius: 50px; display: inline-block; margin-top: 20px;}
@@ -1052,13 +1050,31 @@
             
             const today = new Date().toLocaleDateString();
 
-            sorted.forEach(student => {
+            sorted.forEach((student, index) => {
+                let rankBadge = '<i class="fa-solid fa-star" style="color: #4F46E5; font-size: 50px; margin-bottom: 10px;"></i>';
+                let rankTitle = '<span style="color: #4F46E5;">PBIS Excellence Award</span>';
+                let borderStyle = 'border: 12px double #4F46E5;';
+
+                if (index === 0) {
+                    rankBadge = '<i class="fa-solid fa-medal" style="color: #F59E0B; font-size: 60px; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);"></i>';
+                    rankTitle = '<span style="color: #F59E0B; font-size: 28px;">1st Place - PBIS Excellence</span>';
+                    borderStyle = 'border: 12px double #F59E0B; background: #FFFBFC;';
+                } else if (index === 1) {
+                    rankBadge = '<i class="fa-solid fa-medal" style="color: #9CA3AF; font-size: 60px; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);"></i>';
+                    rankTitle = '<span style="color: #9CA3AF; font-size: 28px;">2nd Place - PBIS Excellence</span>';
+                    borderStyle = 'border: 12px double #9CA3AF; background: #F9FAFB;';
+                } else if (index === 2) {
+                    rankBadge = '<i class="fa-solid fa-medal" style="color: #B45309; font-size: 60px; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);"></i>';
+                    rankTitle = '<span style="color: #B45309; font-size: 28px;">3rd Place - PBIS Excellence</span>';
+                    borderStyle = 'border: 12px double #B45309; background: #FFFBEB;';
+                }
+
                 html += `
                 <div class="cert-page">
-                    <div class="cert-border">
-                        <div style="font-size: 50px; margin-bottom: 10px;">🌟</div>
+                    <div class="cert-border" style="${borderStyle}">
+                        ${rankBadge}
                         <h1>Certificate of Achievement</h1>
-                        <h2>PBIS Excellence Award</h2>
+                        <h2>${rankTitle}</h2>
                         <div class="content">This certificate is proudly presented to</div>
                         <div class="student-name">${student.name}</div>
                         <div class="content">for outstanding behavior and earning</div>
@@ -1079,7 +1095,7 @@
             
             setTimeout(() => {
                 printWindow.print();
-            }, 500);
+            }, 1000); 
             
             window.closeModals();
         }
